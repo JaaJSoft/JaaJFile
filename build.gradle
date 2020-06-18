@@ -9,12 +9,14 @@ version '0.1'
 
 repositories {
     mavenCentral()
+    maven {
+        url  "https://dl.bintray.com/jaaj/JaaJ"
+    }
 }
 
 dependencies {
+    implementation 'dev.jaaj:JaaJEvent:0.1.1'
     testImplementation group: 'junit', name: 'junit', version: '4.12'
-    implementation 'dev.jaaj:JaaJEvent:0.1'
-
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
