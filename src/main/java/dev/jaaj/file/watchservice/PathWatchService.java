@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
@@ -23,6 +24,7 @@ public class PathWatchService {
     private final Map<Path, EventInvoker<FileCreatedEvent>> eventInvokersFileCreated = new HashMap<>();
 
     private boolean running = false;
+    private Future<?> task;
 
     public PathWatchService() throws IOException {
         watchService = FileSystems.getDefault().newWatchService();
@@ -34,6 +36,48 @@ public class PathWatchService {
 
     public PathWatchService(WatchService watchService) {
         this.watchService = watchService;
+    }
+
+    private void start() {
+        running = true;
+        task = executor.submit(() -> {
+            WatchKey key;
+            while (running) {
+                try {
+                    if ((key = watchService.take()) != null) {
+                        for (WatchEvent<?> event : key.pollEvents()) {
+                            //because the path returned by context is broken
+                            Path file = ((Path) key.watchable()).resolve(((WatchEvent<Path>) event).context());
+                            if (event.kind() == ENTRY_MODIFY) {
+                                EventInvoker<FileChangedEvent> eventInvoker = eventInvokersFileChanged.get(file);
+                                if (eventInvoker != null) {
+                                    eventInvoker.invoke(new FileChangedEvent(file));
+                                }
+                            } else if (event.kind() == ENTRY_DELETE) {
+                                EventInvoker<FileDeletedEvent> eventInvoker = eventInvokersFileDeleted.get(file);
+                                if (eventInvoker != null) {
+                                    eventInvoker.invoke(new FileDeletedEvent(file));
+                                    //unregister(file);
+                                }
+                            } else if (event.kind() == ENTRY_CREATE) {
+                                EventInvoker<FileCreatedEvent> eventInvoker = eventInvokersFileCreated.get(file);
+                                if (eventInvoker != null) {
+                                    eventInvoker.invoke(new FileCreatedEvent(file));
+                                }
+                            }
+                        }
+                        key.reset();
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    private boolean stop() {
+        running = false;
+        return task.cancel(false);
     }
 
     private synchronized void registerIfNot(Path pathToWatch) throws IOException {
