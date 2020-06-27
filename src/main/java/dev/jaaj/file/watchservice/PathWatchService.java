@@ -38,7 +38,7 @@ public class PathWatchService {
         this.watchService = watchService;
     }
 
-    private void start() {
+    void start() {
         running = true;
         task = executor.submit(() -> {
             WatchKey key;
@@ -48,21 +48,42 @@ public class PathWatchService {
                         for (WatchEvent<?> event : key.pollEvents()) {
                             //because the path returned by context is broken
                             Path file = ((Path) key.watchable()).resolve(((WatchEvent<Path>) event).context());
+                            Path parentFile = file.getParent();
+                            System.out.println(parentFile);
                             if (event.kind() == ENTRY_MODIFY) {
-                                EventInvoker<FileChangedEvent> eventInvoker = eventInvokersFileChanged.get(file);
-                                if (eventInvoker != null) {
-                                    eventInvoker.invoke(new FileChangedEvent(file));
+                                EventInvoker<FileChangedEvent> dirEventInvoker = eventInvokersFileChanged.get(parentFile);
+                                System.out.println("MODIFY -> " + dirEventInvoker);
+                                if (dirEventInvoker != null) {
+                                    dirEventInvoker.invoke(new FileChangedEvent(file));
+                                }
+                                EventInvoker<FileChangedEvent> fileEventInvoker = eventInvokersFileChanged.get(file);
+                                System.out.println("MODIFY -> " + fileEventInvoker);
+                                if (fileEventInvoker != null) {
+                                    fileEventInvoker.invoke(new FileChangedEvent(file));
                                 }
                             } else if (event.kind() == ENTRY_DELETE) {
-                                EventInvoker<FileDeletedEvent> eventInvoker = eventInvokersFileDeleted.get(file);
-                                if (eventInvoker != null) {
-                                    eventInvoker.invoke(new FileDeletedEvent(file));
+                                EventInvoker<FileDeletedEvent> dirEventInvoker = eventInvokersFileDeleted.get(parentFile);
+                                System.out.println("DELETE -> " + dirEventInvoker);
+                                if (dirEventInvoker != null) {
+                                    dirEventInvoker.invoke(new FileDeletedEvent(file));
+                                    //unregister(file);
+                                }
+                                EventInvoker<FileDeletedEvent> fileEventInvoker = eventInvokersFileDeleted.get(file);
+                                System.out.println("DELETE -> " + fileEventInvoker);
+                                if (fileEventInvoker != null) {
+                                    fileEventInvoker.invoke(new FileDeletedEvent(file));
                                     //unregister(file);
                                 }
                             } else if (event.kind() == ENTRY_CREATE) {
-                                EventInvoker<FileCreatedEvent> eventInvoker = eventInvokersFileCreated.get(file);
-                                if (eventInvoker != null) {
-                                    eventInvoker.invoke(new FileCreatedEvent(file));
+                                EventInvoker<FileCreatedEvent> dirEventInvoker = eventInvokersFileCreated.get(parentFile);
+                                System.out.println("CREATE -> " + dirEventInvoker);
+                                if (dirEventInvoker != null) {
+                                    dirEventInvoker.invoke(new FileCreatedEvent(file));
+                                }
+                                EventInvoker<FileCreatedEvent> fileEventInvoker = eventInvokersFileCreated.get(file);
+                                System.out.println("CREATE -> " + fileEventInvoker);
+                                if (fileEventInvoker != null) {
+                                    fileEventInvoker.invoke(new FileCreatedEvent(file));
                                 }
                             }
                         }
@@ -75,15 +96,21 @@ public class PathWatchService {
         });
     }
 
-    private boolean stop() {
+    boolean stop() {
         running = false;
         return task.cancel(false);
     }
 
     private synchronized void registerIfNot(Path pathToWatch) throws IOException {
-        if (!pathWatched.containsKey(pathToWatch)) {
-            WatchKey key = pathToWatch.register(watchService, ENTRY_MODIFY, ENTRY_DELETE, ENTRY_CREATE);
-            pathWatched.put(pathToWatch, key);
+        Path dirToWatch;
+        if (Files.isDirectory(pathToWatch)) {
+            dirToWatch = pathToWatch;
+        } else {
+            dirToWatch = pathToWatch.getParent();
+        }
+        if (!pathWatched.containsKey(dirToWatch)) {
+            WatchKey key = dirToWatch.register(watchService, ENTRY_MODIFY, ENTRY_DELETE, ENTRY_CREATE);
+            pathWatched.put(dirToWatch, key);
         }
     }
 
@@ -96,10 +123,18 @@ public class PathWatchService {
     }
 
     private boolean unregisterIfNoListenerLeft(Path pathToUnWatch) {
+
         if (eventInvokersFileCreated.get(pathToUnWatch) == null
                 && eventInvokersFileDeleted.get(pathToUnWatch) == null
                 && eventInvokersFileChanged.get(pathToUnWatch) == null) {
-            return unregister(pathToUnWatch);
+            if (!Files.isDirectory(pathToUnWatch)
+                    && eventInvokersFileCreated.get(pathToUnWatch.getParent()) == null
+                    && eventInvokersFileDeleted.get(pathToUnWatch.getParent()) == null
+                    && eventInvokersFileChanged.get(pathToUnWatch.getParent()) == null) {
+                return unregister(pathToUnWatch.getParent());
+            } else {
+                return unregister(pathToUnWatch);
+            }
         }
         return false;
     }
