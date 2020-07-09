@@ -2,6 +2,8 @@ package dev.jaaj.file.watchservice;
 
 import dev.jaaj.event.EventInvoker;
 import dev.jaaj.file.event.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -11,6 +13,9 @@ import java.util.Map;
 import static java.nio.file.StandardWatchEventKinds.*;
 
 public class PathWatchService implements Runnable {
+
+    private static final Logger logger = LoggerFactory.getLogger(PathWatchService.class);
+
     private final WatchService watchService;
 
     private final HashMap<Path, WatchKey> pathWatched = new HashMap<>();
@@ -40,39 +45,38 @@ public class PathWatchService implements Runnable {
                         //because the path returned by context is broken
                         Path file = ((Path) key.watchable()).resolve(((WatchEvent<Path>) event).context());
                         Path parentFile = file.getParent();
-                        System.out.println(parentFile);
                         if (event.kind() == ENTRY_MODIFY) {
                             EventInvoker<FileChangedEvent> dirEventInvoker = eventInvokersFileChanged.get(parentFile);
-                            System.out.println("MODIFY -> " + dirEventInvoker);
+                            logger.debug("MODIFY -> " + dirEventInvoker);
                             if (dirEventInvoker != null) {
                                 dirEventInvoker.invoke(new FileChangedEvent(file));
                             }
                             EventInvoker<FileChangedEvent> fileEventInvoker = eventInvokersFileChanged.get(file);
-                            System.out.println("MODIFY -> " + fileEventInvoker);
+                            logger.debug("MODIFY -> " + fileEventInvoker);
                             if (fileEventInvoker != null) {
                                 fileEventInvoker.invoke(new FileChangedEvent(file));
                             }
                         } else if (event.kind() == ENTRY_DELETE) {
                             EventInvoker<FileDeletedEvent> dirEventInvoker = eventInvokersFileDeleted.get(parentFile);
-                            System.out.println("DELETE -> " + dirEventInvoker);
+                            logger.debug("DELETE -> " + dirEventInvoker);
                             if (dirEventInvoker != null) {
                                 dirEventInvoker.invoke(new FileDeletedEvent(file));
                                 //unregister(file);
                             }
                             EventInvoker<FileDeletedEvent> fileEventInvoker = eventInvokersFileDeleted.get(file);
-                            System.out.println("DELETE -> " + fileEventInvoker);
+                            logger.debug("DELETE -> " + fileEventInvoker);
                             if (fileEventInvoker != null) {
                                 fileEventInvoker.invoke(new FileDeletedEvent(file));
                                 //unregister(file);
                             }
                         } else if (event.kind() == ENTRY_CREATE) {
                             EventInvoker<FileCreatedEvent> dirEventInvoker = eventInvokersFileCreated.get(parentFile);
-                            System.out.println("CREATE -> " + dirEventInvoker);
+                            logger.debug("CREATE -> " + dirEventInvoker);
                             if (dirEventInvoker != null) {
                                 dirEventInvoker.invoke(new FileCreatedEvent(file));
                             }
                             EventInvoker<FileCreatedEvent> fileEventInvoker = eventInvokersFileCreated.get(file);
-                            System.out.println("CREATE -> " + fileEventInvoker);
+                            logger.debug("CREATE -> " + fileEventInvoker);
                             if (fileEventInvoker != null) {
                                 fileEventInvoker.invoke(new FileCreatedEvent(file));
                             }

@@ -5,7 +5,7 @@ plugins {
 }
 
 group 'dev.jaaj'
-version '0.2.0'
+version '0.2.1'
 
 repositories {
     mavenCentral()
@@ -16,6 +16,7 @@ repositories {
 
 dependencies {
     implementation 'dev.jaaj:JaaJEvent:0.1.1'
+    implementation group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.28'
     testImplementation group: 'junit', name: 'junit', version: '4.12'
 }
 
