@@ -7,24 +7,16 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import static java.nio.file.StandardWatchEventKinds.*;
 
-public class PathWatchService {
+public class PathWatchService implements Runnable {
     private final WatchService watchService;
-
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private final HashMap<Path, WatchKey> pathWatched = new HashMap<>();
     private final Map<Path, EventInvoker<FileChangedEvent>> eventInvokersFileChanged = new HashMap<>();
     private final Map<Path, EventInvoker<FileDeletedEvent>> eventInvokersFileDeleted = new HashMap<>();
     private final Map<Path, EventInvoker<FileCreatedEvent>> eventInvokersFileCreated = new HashMap<>();
-
-    private boolean running = false;
-    private Future<?> task;
 
     public PathWatchService() throws IOException {
         watchService = FileSystems.getDefault().newWatchService();
@@ -38,67 +30,60 @@ public class PathWatchService {
         this.watchService = watchService;
     }
 
-    void start() {
-        running = true;
-        task = executor.submit(() -> {
-            WatchKey key;
-            while (running) {
-                try {
-                    if ((key = watchService.take()) != null) {
-                        for (WatchEvent<?> event : key.pollEvents()) {
-                            //because the path returned by context is broken
-                            Path file = ((Path) key.watchable()).resolve(((WatchEvent<Path>) event).context());
-                            Path parentFile = file.getParent();
-                            System.out.println(parentFile);
-                            if (event.kind() == ENTRY_MODIFY) {
-                                EventInvoker<FileChangedEvent> dirEventInvoker = eventInvokersFileChanged.get(parentFile);
-                                System.out.println("MODIFY -> " + dirEventInvoker);
-                                if (dirEventInvoker != null) {
-                                    dirEventInvoker.invoke(new FileChangedEvent(file));
-                                }
-                                EventInvoker<FileChangedEvent> fileEventInvoker = eventInvokersFileChanged.get(file);
-                                System.out.println("MODIFY -> " + fileEventInvoker);
-                                if (fileEventInvoker != null) {
-                                    fileEventInvoker.invoke(new FileChangedEvent(file));
-                                }
-                            } else if (event.kind() == ENTRY_DELETE) {
-                                EventInvoker<FileDeletedEvent> dirEventInvoker = eventInvokersFileDeleted.get(parentFile);
-                                System.out.println("DELETE -> " + dirEventInvoker);
-                                if (dirEventInvoker != null) {
-                                    dirEventInvoker.invoke(new FileDeletedEvent(file));
-                                    //unregister(file);
-                                }
-                                EventInvoker<FileDeletedEvent> fileEventInvoker = eventInvokersFileDeleted.get(file);
-                                System.out.println("DELETE -> " + fileEventInvoker);
-                                if (fileEventInvoker != null) {
-                                    fileEventInvoker.invoke(new FileDeletedEvent(file));
-                                    //unregister(file);
-                                }
-                            } else if (event.kind() == ENTRY_CREATE) {
-                                EventInvoker<FileCreatedEvent> dirEventInvoker = eventInvokersFileCreated.get(parentFile);
-                                System.out.println("CREATE -> " + dirEventInvoker);
-                                if (dirEventInvoker != null) {
-                                    dirEventInvoker.invoke(new FileCreatedEvent(file));
-                                }
-                                EventInvoker<FileCreatedEvent> fileEventInvoker = eventInvokersFileCreated.get(file);
-                                System.out.println("CREATE -> " + fileEventInvoker);
-                                if (fileEventInvoker != null) {
-                                    fileEventInvoker.invoke(new FileCreatedEvent(file));
-                                }
+    @Override
+    public void run() {
+        WatchKey key;
+        while (!Thread.currentThread().isInterrupted()) {
+            try {
+                if ((key = watchService.take()) != null) {
+                    for (WatchEvent<?> event : key.pollEvents()) {
+                        //because the path returned by context is broken
+                        Path file = ((Path) key.watchable()).resolve(((WatchEvent<Path>) event).context());
+                        Path parentFile = file.getParent();
+                        System.out.println(parentFile);
+                        if (event.kind() == ENTRY_MODIFY) {
+                            EventInvoker<FileChangedEvent> dirEventInvoker = eventInvokersFileChanged.get(parentFile);
+                            System.out.println("MODIFY -> " + dirEventInvoker);
+                            if (dirEventInvoker != null) {
+                                dirEventInvoker.invoke(new FileChangedEvent(file));
+                            }
+                            EventInvoker<FileChangedEvent> fileEventInvoker = eventInvokersFileChanged.get(file);
+                            System.out.println("MODIFY -> " + fileEventInvoker);
+                            if (fileEventInvoker != null) {
+                                fileEventInvoker.invoke(new FileChangedEvent(file));
+                            }
+                        } else if (event.kind() == ENTRY_DELETE) {
+                            EventInvoker<FileDeletedEvent> dirEventInvoker = eventInvokersFileDeleted.get(parentFile);
+                            System.out.println("DELETE -> " + dirEventInvoker);
+                            if (dirEventInvoker != null) {
+                                dirEventInvoker.invoke(new FileDeletedEvent(file));
+                                //unregister(file);
+                            }
+                            EventInvoker<FileDeletedEvent> fileEventInvoker = eventInvokersFileDeleted.get(file);
+                            System.out.println("DELETE -> " + fileEventInvoker);
+                            if (fileEventInvoker != null) {
+                                fileEventInvoker.invoke(new FileDeletedEvent(file));
+                                //unregister(file);
+                            }
+                        } else if (event.kind() == ENTRY_CREATE) {
+                            EventInvoker<FileCreatedEvent> dirEventInvoker = eventInvokersFileCreated.get(parentFile);
+                            System.out.println("CREATE -> " + dirEventInvoker);
+                            if (dirEventInvoker != null) {
+                                dirEventInvoker.invoke(new FileCreatedEvent(file));
+                            }
+                            EventInvoker<FileCreatedEvent> fileEventInvoker = eventInvokersFileCreated.get(file);
+                            System.out.println("CREATE -> " + fileEventInvoker);
+                            if (fileEventInvoker != null) {
+                                fileEventInvoker.invoke(new FileCreatedEvent(file));
                             }
                         }
-                        key.reset();
                     }
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    key.reset();
                 }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        });
-    }
-
-    boolean stop() {
-        running = false;
-        return task.cancel(false);
+        }
     }
 
     private synchronized void registerIfNot(Path pathToWatch) throws IOException {
@@ -204,4 +189,6 @@ public class PathWatchService {
         }
         return b;
     }
+
+
 }
