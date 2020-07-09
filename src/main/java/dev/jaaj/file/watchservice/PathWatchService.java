@@ -47,37 +47,37 @@ public class PathWatchService implements Runnable {
                         Path parentFile = file.getParent();
                         if (event.kind() == ENTRY_MODIFY) {
                             EventInvoker<FileChangedEvent> dirEventInvoker = eventInvokersFileChanged.get(parentFile);
-                            logger.info("MODIFY -> " + file);
                             if (dirEventInvoker != null) {
+                                logger.info("MODIFY -> " + file);
                                 dirEventInvoker.invoke(new FileChangedEvent(file));
                             }
                             EventInvoker<FileChangedEvent> fileEventInvoker = eventInvokersFileChanged.get(file);
-                            logger.info("MODIFY -> " + file);
                             if (fileEventInvoker != null) {
+                                logger.info("MODIFY -> " + file);
                                 fileEventInvoker.invoke(new FileChangedEvent(file));
                             }
                         } else if (event.kind() == ENTRY_DELETE) {
                             EventInvoker<FileDeletedEvent> dirEventInvoker = eventInvokersFileDeleted.get(parentFile);
-                            logger.info("DELETE -> " + file);
                             if (dirEventInvoker != null) {
+                                logger.info("DELETE -> " + file);
                                 dirEventInvoker.invoke(new FileDeletedEvent(file));
                                 //unregister(file);
                             }
                             EventInvoker<FileDeletedEvent> fileEventInvoker = eventInvokersFileDeleted.get(file);
-                            logger.info("DELETE -> " + file);
                             if (fileEventInvoker != null) {
+                                logger.info("DELETE -> " + file);
                                 fileEventInvoker.invoke(new FileDeletedEvent(file));
                                 //unregister(file);
                             }
                         } else if (event.kind() == ENTRY_CREATE) {
                             EventInvoker<FileCreatedEvent> dirEventInvoker = eventInvokersFileCreated.get(parentFile);
-                            logger.info("CREATE -> " + file);
                             if (dirEventInvoker != null) {
+                                logger.info("CREATE -> " + file);
                                 dirEventInvoker.invoke(new FileCreatedEvent(file));
                             }
                             EventInvoker<FileCreatedEvent> fileEventInvoker = eventInvokersFileCreated.get(file);
-                            logger.info("CREATE -> " + file);
                             if (fileEventInvoker != null) {
+                                logger.info("CREATE -> " + file);
                                 fileEventInvoker.invoke(new FileCreatedEvent(file));
                             }
                         }
