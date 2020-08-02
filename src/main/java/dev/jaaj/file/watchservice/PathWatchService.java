@@ -1,3 +1,19 @@
+/*
+ * Copyright 2020 JaaJSoft
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dev.jaaj.file.watchservice;
 
 import dev.jaaj.event.EventInvoker;
@@ -48,36 +64,36 @@ public class PathWatchService implements Runnable {
                         if (event.kind() == ENTRY_MODIFY) {
                             EventInvoker<FileChangedEvent> dirEventInvoker = eventInvokersFileChanged.get(parentFile);
                             if (dirEventInvoker != null) {
-                                logger.info("MODIFY -> " + file);
+                                logger.debug("MODIFY -> " + file);
                                 dirEventInvoker.invoke(new FileChangedEvent(file));
                             }
                             EventInvoker<FileChangedEvent> fileEventInvoker = eventInvokersFileChanged.get(file);
                             if (fileEventInvoker != null) {
-                                logger.info("MODIFY -> " + file);
+                                logger.debug("MODIFY -> " + file);
                                 fileEventInvoker.invoke(new FileChangedEvent(file));
                             }
                         } else if (event.kind() == ENTRY_DELETE) {
                             EventInvoker<FileDeletedEvent> dirEventInvoker = eventInvokersFileDeleted.get(parentFile);
                             if (dirEventInvoker != null) {
-                                logger.info("DELETE -> " + file);
+                                logger.debug("DELETE -> " + file);
                                 dirEventInvoker.invoke(new FileDeletedEvent(file));
                                 //unregister(file);
                             }
                             EventInvoker<FileDeletedEvent> fileEventInvoker = eventInvokersFileDeleted.get(file);
                             if (fileEventInvoker != null) {
-                                logger.info("DELETE -> " + file);
+                                logger.debug("DELETE -> " + file);
                                 fileEventInvoker.invoke(new FileDeletedEvent(file));
                                 //unregister(file);
                             }
                         } else if (event.kind() == ENTRY_CREATE) {
                             EventInvoker<FileCreatedEvent> dirEventInvoker = eventInvokersFileCreated.get(parentFile);
                             if (dirEventInvoker != null) {
-                                logger.info("CREATE -> " + file);
+                                logger.debug("CREATE -> " + file);
                                 dirEventInvoker.invoke(new FileCreatedEvent(file));
                             }
                             EventInvoker<FileCreatedEvent> fileEventInvoker = eventInvokersFileCreated.get(file);
                             if (fileEventInvoker != null) {
-                                logger.info("CREATE -> " + file);
+                                logger.debug("CREATE -> " + file);
                                 fileEventInvoker.invoke(new FileCreatedEvent(file));
                             }
                         }
@@ -99,7 +115,7 @@ public class PathWatchService implements Runnable {
         }
         if (!pathWatched.containsKey(dirToWatch)) {
             WatchKey key = dirToWatch.register(watchService, ENTRY_MODIFY, ENTRY_DELETE, ENTRY_CREATE);
-            logger.info("REGISTER -> " + pathToWatch);
+            logger.debug("REGISTER -> " + pathToWatch);
             pathWatched.put(dirToWatch, key);
         }
     }
@@ -107,6 +123,7 @@ public class PathWatchService implements Runnable {
     private synchronized boolean unregister(Path pathToUnWatch) {
         WatchKey watchKey = pathWatched.get(pathToUnWatch);
         if (watchKey != null) {
+            logger.debug("UNREGISTER -> " + pathToUnWatch);
             watchKey.cancel();
             return true;
         } else return false;
